@@ -71,7 +71,7 @@ void destruir_dato(void* dato){
 }	
 
 
-int primos(int j){
+int primos(int j, int contador){
   int primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
   int proximo;
 
@@ -84,16 +84,9 @@ int primos(int j){
   } 
   
   if (proximo) return proximo;
-  int primos_grandes[20];
-  for (int i=0; i<=20; i++){
-    primos_grandes[i]=i*i +1+41;
-    if (primos_grandes[i]==j){
-      proximo=primos_grandes[i];
-      break;
-    }
-  }
- 
-  return proximo;
+
+  return contador*contador +contador +41;
+
 }
   
 
@@ -160,7 +153,6 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
   
   hash->destruir_dato=destruir_dato;
   hash->capacidad=CAPACIDAD_INICIAL;
-  hash->contador=CAPACIDAD_INICIAL; //mantiene el enum pero no me esta saliendo. Te la regalo
   return hash;
 }
 
@@ -264,7 +256,7 @@ void redimensionar(hash_t *hash){
 	
 	hash_t *nuevo=hash_crear(viejo->destruir_dato);
 	
-	size_t nueva_capacidad=(size_t)primos((int)viejo->capacidad);
+	size_t nueva_capacidad=(size_t)primos((int)viejo->capacidad, (int)viejo->contador);
 	nuevo->tabla=realloc(nuevo->tabla,nueva_capacidad); //
 	
 	while(!hash_iter_al_final(iterador_viejo)){
