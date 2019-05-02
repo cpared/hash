@@ -70,24 +70,6 @@ void destruir_dato(void* dato){
 	free(dato);
 }	
 
-
-int primos(int j, int contador){
-  int primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
-  int proximo;
-
-  for (int i=0; i<12; i++){
-    if (primos_pequenios[i]!=j) continue;
-    if (primos_pequenios[i]==j){
-      proximo=primos_pequenios[i];
-      break;
-    }
-  } 
-  
-  if (proximo) return proximo;
-
-  return contador*contador +contador +41;
-
-}
   
 
 //--------------------------BUSQUEDA---------------------------------
@@ -243,6 +225,22 @@ void hash_iter_destruir(hash_iter_t* iter){
 
 //-------------------------REDIMENSION---------------------------------
 
+void primos(hash_t *hash){
+	int primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
+	int proximo;
+	int j= (int ) hash->capacidad;
+	for (int i=0; i<12; i++){
+		if (primos_pequenios[i]==j){
+			proximo=primos_pequenios[i];
+			break;
+		}	
+    }
+	if (proximo) hash->capacidad= (size_t)proximo;
+
+	hash->capacidad= hash->contador*hash->contador +hash->contador +41;
+	hash->contador++;
+
+}
 
 void redimensionar(hash_t *hash){
 	
@@ -256,8 +254,8 @@ void redimensionar(hash_t *hash){
 	
 	hash_t *nuevo=hash_crear(viejo->destruir_dato);
 	
-	size_t nueva_capacidad=(size_t)primos((int)viejo->capacidad, (int)viejo->contador);
-	nuevo->tabla=realloc(nuevo->tabla,nueva_capacidad); //
+	primos(viejo);
+	nuevo->tabla=realloc(nuevo->tabla,viejo->capacidad); //
 	
 	while(!hash_iter_al_final(iterador_viejo)){
 		
@@ -270,8 +268,6 @@ void redimensionar(hash_t *hash){
 		hash_iter_avanzar(iterador_viejo);
 	}
 	hash=nuevo;
-	hash->capacidad=nueva_capacidad;
-	hash->contador++; //actualizar el contador de el enum
 	
 	hash_iter_destruir(iterador_viejo);
 	hash_destruir(viejo);
