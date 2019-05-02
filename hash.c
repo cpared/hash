@@ -109,37 +109,33 @@ int buscar_ocupado(const hash_t *hash, const char *clave){
 
 hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 	
-  hash_t* hash=malloc(sizeof(hash_t));
+  hash_t* hash=calloc(1,sizeof(hash_t));
   if(!hash) return NULL;
   
-  hash->tabla=malloc(sizeof(campo_t*)*CAPACIDAD_INICIAL);
+  hash->tabla=calloc(CAPACIDAD_INICIAL,sizeof(campo_t*));
   if(!hash->tabla){
     free(hash);
     return NULL;
   }
   
   for(int i=0;i<CAPACIDAD_INICIAL;i++){
-    hash->tabla[i]=malloc(sizeof(campo_t));
-	
-	if(!hash->tabla[i]){
-		free(hash->tabla);
-		free(hash);
-		return NULL;
-    }
-    hash->tabla[i]->clave=malloc(sizeof(char*));
-    if(!hash->tabla[i]->clave){
-		free(hash->tabla);
-		free(hash);
-		return NULL;
-    }
+    hash->tabla[i]=calloc(1,sizeof(campo_t));
     
-    hash->tabla[i]->estado=VACIO;
+    if(!hash->tabla[i]){
+        free(hash->tabla);
+        free(hash);
+        return NULL;
+    }
+    hash->tabla[i]->clave=calloc(1,sizeof(char*));
+    if(!hash->tabla[i]->clave){
+        free(hash->tabla);
+        free(hash);
+        return NULL;
+    }
   }
   
   hash->destruir_dato=destruir_dato;
   hash->capacidad=CAPACIDAD_INICIAL;
-  hash->cantidad=0;
-  hash->borrados=0;
   hash->contador=CAPACIDAD_INICIAL; //mantiene el enum pero no me esta saliendo. Te la regalo
   return hash;
 }
@@ -156,10 +152,10 @@ void hash_destruir(hash_t *hash){
     size_t i = 0;
     while (i < hash->capacidad){
         if(hash->destruir_dato){
-            hash->destruir_dato(hash->tabla[i]->clave);
+            hash->destruir_dato(hash->tabla[i]->dato);
         }
         free(hash->tabla[i]->clave);
-        free(hash->tabla[i]);
+        //free(hash->tabla[i]);
         i++;
     }
     free(hash->tabla);
@@ -236,7 +232,7 @@ void redimensionar(hash_t *hash){
 	
 	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
 	
-	if ( carga < 0.33 ){
+	if ( carga < 0.7 ){
 		return;
 	}
 	hash_t *viejo= hash;
@@ -259,7 +255,7 @@ void redimensionar(hash_t *hash){
 	hash->contador++; //actualizar el contador de el enum
 	
 	hash_iter_destruir(iterador_viejo);
-	free(viejo);
+	hash_destruir(viejo);
 
 }
 
@@ -283,7 +279,7 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	hash->tabla[i]->estado= BORRADO;
 	hash->tabla[i]->clave=NULL;
 	
-	//redimensionar(hash);
+	redimensionar(hash);
 	hash->cantidad--;
 	hash->borrados++;
 	return dato;
@@ -300,14 +296,13 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 		i=buscar_ocupado(hash,clave);
 	}			
 	if(i==-1) return false;
-	
 	strcpy(hash->tabla[i]->clave,clave);
 	
 	hash->tabla[i]->dato= dato;
 	hash->tabla[i]->estado= OCUPADO;	
 	hash->cantidad++;
 	
-	//redimensionar(hash);
+	redimensionar(hash);
 	return true;
 }
 
