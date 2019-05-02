@@ -254,9 +254,6 @@ void redimensionar(hash_t *hash){
 	
 	hash_t *nuevo=hash_crear(viejo->destruir_dato);
 	
-	primos(viejo);
-	nuevo->tabla=realloc(nuevo->tabla,viejo->capacidad); //
-	
 	while(!hash_iter_al_final(iterador_viejo)){
 		
 		const char *clave_vieja=hash_iter_ver_actual(iterador_viejo);
@@ -267,6 +264,12 @@ void redimensionar(hash_t *hash){
 		}	
 		hash_iter_avanzar(iterador_viejo);
 	}
+	primos(viejo);
+	nuevo->tabla=realloc(nuevo->tabla,viejo->capacidad); //
+	nuevo->cantidad=viejo->cantidad;
+	nuevo->contador=viejo->contador;
+	
+	
 	hash=nuevo;
 	
 	hash_iter_destruir(iterador_viejo);
