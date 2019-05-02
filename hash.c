@@ -21,7 +21,7 @@ CUERENTAYUNO=41,
 CUARENTAYTRES=43,
 CUARENTAYNUEVE=47,
 CINCUENTAYTRES=53,
-} primos;
+} primos_t;
 
 
 typedef enum {
@@ -71,7 +71,31 @@ void destruir_dato(void* dato){
 }	
 
 
+int primos(int j){
+  int primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
+  int proximo;
 
+  for (int i=0; i<12; i++){
+    if (primos_pequenios[i]!=j) continue;
+    if (primos_pequenios[i]==j){
+      proximo=primos_pequenios[i];
+      break;
+    }
+  } 
+  
+  if (proximo) return proximo;
+  int primos_grandes[20];
+  for (int i=0; i<=20; i++){
+    primos_grandes[i]=i*i +1+41;
+    if (primos_grandes[i]==j){
+      proximo=primos_grandes[i];
+      break;
+    }
+  }
+ 
+  return proximo;
+}
+  
 
 //--------------------------BUSQUEDA---------------------------------
 
@@ -240,18 +264,21 @@ void redimensionar(hash_t *hash){
 	
 	hash_t *nuevo=hash_crear(viejo->destruir_dato);
 	
+	size_t nueva_capacidad=(size_t)primos((int)viejo->capacidad);
+	nuevo->tabla=realloc(nuevo->tabla,nueva_capacidad); //
+	
 	while(!hash_iter_al_final(iterador_viejo)){
 		
 		const char *clave_vieja=hash_iter_ver_actual(iterador_viejo);
 		char *clave_nueva=NULL;
-		strcpy(clave_nueva,clave_vieja);
-		hash_guardar(nuevo, clave_nueva, iterador_viejo->hash->tabla[(iterador_viejo->pos)]->dato);
-		
+		if (clave_vieja!=NULL){
+			strcpy(clave_nueva,clave_vieja);
+			hash_guardar(nuevo, clave_nueva, iterador_viejo->hash->tabla[(iterador_viejo->pos)]->dato);
+		}	
 		hash_iter_avanzar(iterador_viejo);
 	}
 	hash=nuevo;
-	size_t nuevo_capacidad=viejo->contador + 1; // probelma del enum
-	hash->capacidad=nuevo_capacidad;
+	hash->capacidad=nueva_capacidad;
 	hash->contador++; //actualizar el contador de el enum
 	
 	hash_iter_destruir(iterador_viejo);
