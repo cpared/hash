@@ -51,7 +51,7 @@ struct hash{
 
 
 struct hash_iter{
-    int pos;
+    size_t pos;
     hash_t* hash;
 };
 
@@ -74,32 +74,34 @@ void destruir_dato(void* dato){
 
 //--------------------------BUSQUEDA---------------------------------
 
-int buscar_vacio(const hash_t *hash, const char *clave){
+size_t buscar_vacio(const hash_t *hash, const char *clave){
 	
-	int inicial=(int)fhash(clave);
+	size_t inicial=(size_t)fhash(clave);
 	
-	int pos;
-	for (int i=0; i< (int)hash->capacidad; i++){
-		pos= (inicial + i)% (int)hash->capacidad;
+	size_t pos;
+	for (size_t i=0; i< hash->capacidad; i++){
+		pos= (inicial + i)% hash->capacidad;
 		if (hash->tabla[pos]->estado== VACIO) return pos;
 	}
-	return -1;	
+	return 0;
 }
 
 
-int buscar_ocupado(const hash_t *hash, const char *clave){
+size_t buscar_ocupado(const hash_t *hash, const char *clave){
 	
-	int inicial=fhash(clave);
-	int pos;
-	for (int i=0; i< (int)hash->capacidad; i++){
-		pos= (inicial + i)% (int)hash->capacidad;
+	size_t inicial=(size_t)fhash(clave);
+	size_t pos;
+	for (size_t i=0; i< hash->capacidad; i++){
+		pos= (inicial + i)% hash->capacidad;
+		if (hash->tabla[pos]->estado==OCUPADO && hash->tabla[pos]->clave==NULL) continue;
+		
 		if (hash->tabla[pos]->estado==OCUPADO && strcmp(hash->tabla[pos]->clave,clave)==0){
 			return pos;
 		} else if (hash->tabla[pos]->estado==VACIO){
-			return -1;
+			return 0;
 		}	
 	}
-	return -1;
+	return 0;
 }
 
 
@@ -140,8 +142,9 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
 
 
 void *hash_obtener(const hash_t *hash, const char *clave){
-    int i = buscar_ocupado(hash,clave);
-	if (i==-1) return NULL;
+    size_t i = buscar_ocupado(hash,clave);
+    
+	if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return NULL;
 	return hash->tabla[i]->dato;
 }
 
@@ -153,7 +156,7 @@ void hash_destruir(hash_t *hash){
             hash->destruir_dato(hash->tabla[i]->dato);
         }
         free(hash->tabla[i]->clave);
-        //free(hash->tabla[i]);
+        free(hash->tabla[i]); 
         i++;
     }
     free(hash->tabla);
@@ -162,10 +165,11 @@ void hash_destruir(hash_t *hash){
 
 
 bool hash_pertenece(const hash_t *hash, const char *clave){	
-	int inicial=fhash(clave);
+	size_t inicial= (size_t) fhash(clave);
 	
-	for (int i=0; i< (int)hash->capacidad; i++){
-		int pos= (inicial + i)% (int)hash->capacidad;
+	for (size_t i=0; i<hash->capacidad; i++){
+		size_t pos= (inicial + i)%hash->capacidad;
+		
 		if (hash->tabla[pos]->estado==OCUPADO && strcmp(hash->tabla[pos]->clave,clave)==0){
 			return true;
 		}	
@@ -242,6 +246,7 @@ void primos(hash_t *hash){
 
 }
 
+
 void redimensionar(hash_t *hash){
 	
 	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
@@ -258,10 +263,14 @@ void redimensionar(hash_t *hash){
 		
 		const char *clave_vieja=hash_iter_ver_actual(iterador_viejo);
 		char *clave_nueva=NULL;
-		if (clave_vieja!=NULL){
-			strcpy(clave_nueva,clave_vieja);
-			hash_guardar(nuevo, clave_nueva, iterador_viejo->hash->tabla[(iterador_viejo->pos)]->dato);
-		}	
+		if (clave_vieja==NULL) continue;
+		strcpy(clave_nueva,clave_vieja);
+		
+		size_t i= buscar_vacio(nuevo,clave_nueva);
+		if(i==0 && hash->tabla[i]->estado!=VACIO) continue;
+		nuevo->tabla[i]->clave=clave_nueva;
+		nuevo->tabla[i]->dato=iterador_viejo->hash->tabla[(iterador_viejo->pos)]->dato;
+			
 		hash_iter_avanzar(iterador_viejo);
 	}
 	primos(viejo);
@@ -285,8 +294,8 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	
 	if(!hash_pertenece(hash,clave)) return NULL;
 		
-	int i=buscar_ocupado(hash,clave);
-	if(i==-1) return NULL;
+	size_t i=buscar_ocupado(hash,clave);
+	if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return NULL;
 
 	void* dato;
 	if (hash->destruir_dato!=NULL){
@@ -306,14 +315,14 @@ void *hash_borrar(hash_t *hash, const char *clave){
 
 bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	
-	int i;
+	size_t i;
 	if(!hash_pertenece(hash,clave)){
 		i=buscar_vacio(hash,clave);
-	
+		if (i==0 && hash->tabla[i]->estado!=VACIO) return false;
 	} else {
 		i=buscar_ocupado(hash,clave);
+		if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return false;
 	}			
-	if(i==-1) return false;
 	strcpy(hash->tabla[i]->clave,clave);
 	
 	hash->tabla[i]->dato= dato;
