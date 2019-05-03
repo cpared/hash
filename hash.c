@@ -183,6 +183,39 @@ size_t hash_cantidad(const hash_t *hash){
 }
 
 
+//--------------------------BUSCADORES---------------------------------
+
+size_t buscar_primero(const hash_t* hash){
+	int pos=-1;
+	for (size_t i=0; i< hash->capacidad; i++){
+		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
+			pos=(int)i;
+			break;
+		}
+	}
+	if (pos!=-1){
+		return (size_t)pos;
+	}
+    
+    return (size_t)POS_INICIAL;
+}
+
+size_t buscar_ultimo(const hash_t* hash){
+	int pos=-1;
+	size_t max=buscar_primero(hash);
+	for (size_t i=hash->capacidad-1; i>max; i--){
+		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
+			pos=(int)i;
+			break;
+		}
+	}
+	if (pos!=-1){
+		return (size_t)pos;
+	}
+    
+    return (size_t)POS_INICIAL;
+}
+
 //--------------------------ITERADOR---------------------------------
 
 
@@ -193,32 +226,17 @@ hash_iter_t *hash_iter_crear(const hash_t *hash){
 
 	iter->hash=hash;
     if(!iter->hash) return NULL;
-    //iter->pos = POS_INICIAL;
     
     //busca la primera posicion ocupada
-    int pos=-1;
-	for (size_t i=0; i< hash->capacidad; i++){
-		size_t aux=  i% hash->capacidad;
-		if (hash->tabla[aux] && hash->tabla[aux]->estado==OCUPADO){
-			
-			pos=(int)aux;
-			break;
-		}
-	}
-	if (pos!=-1){
-		iter->pos=(size_t)pos;
-		return iter	;
-	}
+    iter->pos = buscar_primero(hash);
     
-    iter->pos = POS_INICIAL;
     return iter;
 }
 
 
 bool hash_iter_al_final(const hash_iter_t *iter){
-    if( iter->pos == iter->hash->capacidad || !iter->pos) return true;
-    //if( iter->pos == iter->hash->capacidad || !iter->pos  ) return true;
-    //return iter->pos == iter->hash->capacidad;
+    if( iter->pos == iter->hash->capacidad || iter->pos==buscar_ultimo(iter->hash)  ) return true;
+	
 	return false;
 }
 
@@ -228,22 +246,15 @@ bool hash_iter_avanzar(hash_iter_t *iter){
     if (hash_iter_al_final(iter)) return false;
     iter->pos++;
     return true;
-    */
-    if (hash_iter_al_final(iter)) return false;
-    int pos=-1;
-	for (size_t i=0; i< iter->hash->capacidad; i++){
-		size_t aux=  i% iter->hash->capacidad;
-		if (iter->hash->tabla[aux] && iter->hash->tabla[aux]->estado==OCUPADO){
+
+	*/
+	if (hash_iter_al_final(iter)) return false;
+	while(!iter->hash->tabla[iter->pos] && iter->hash->tabla[iter->pos]->estado!=OCUPADO){
+		if (hash_iter_al_final(iter)) return false;
+		iter->pos++;
+	}
+	return true;
 			
-			pos=(int)aux;
-			break;
-		}
-	}
-	if (pos!=-1){
-		iter->pos=(size_t)pos;
-		return true;	
-	}
-	return false;
 }
 
 
@@ -276,12 +287,12 @@ size_t calcular_primo(hash_t* hash, int criterio){
 	size_t actual=hash->capacidad;
 	
 	if (criterio==ACHICAR){
+		if (actual==TAM_MIN) return actual;
 		size_t i=actual;
-		while(!ant && i>=TAM_MIN){
+		while(!ant){
 			if ((factorial(i-1) + 1)%i==0) ant=i;
 			i--;
 		}
-		if (!ant) return actual;
 		return ant;
 	}
 	size_t i=actual;
@@ -291,7 +302,6 @@ size_t calcular_primo(hash_t* hash, int criterio){
 	}
 	return prox;
 }
-
 
 
 void redimensionar(hash_t *hash,int criterio){
