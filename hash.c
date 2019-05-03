@@ -4,24 +4,7 @@
 #include <stdlib.h>
 #include <memory.h>
 
-typedef enum {
-DOS=2,
-TRES=3,
-CINCO=5,
-SIETE=7,
-ONCE=11,
-TRECE=13,
-DIECISIETE=17,
-DIECINUEVE=19,
-VEINTITRES=23,
-VEINTINUEVE=29,
-TRENTAIUNO=31,
-TREINTISIETE37,
-CUERENTAYUNO=41,
-CUARENTAYTRES=43,
-CUARENTAYNUEVE=47,
-CINCUENTAYTRES=53,
-} primos_t;
+
 
 
 typedef enum {
@@ -35,7 +18,7 @@ typedef enum {
 	AGRANDAR,
 }criterio_t;
 
-#define CAPACIDAD_INICIAL ONCE
+#define CAPACIDAD_INICIAL 11
 #define POS_INICIAL 0
 
 typedef struct campo{
@@ -86,7 +69,7 @@ size_t buscar_vacio(const hash_t *hash, const char *clave){
 	size_t pos;
 	for (size_t i=0; i< hash->capacidad; i++){
 		pos= (inicial + i)% hash->capacidad;
-		if (hash->tabla[pos]->estado== VACIO) return pos;
+		if (!hash->tabla[pos]) return pos;
 	}
 	return 0;
 }
@@ -98,7 +81,7 @@ size_t buscar_ocupado(const hash_t *hash, const char *clave){
 	size_t pos;
 	for (size_t i=0; i< hash->capacidad; i++){
 		pos= (inicial + i)% hash->capacidad;
-		if (hash->tabla[pos]->estado==OCUPADO && hash->tabla[pos]->clave==NULL) continue;
+		if (!hash->tabla[pos]) continue;
 		
 		if (hash->tabla[pos]->estado==OCUPADO && strcmp(hash->tabla[pos]->clave,clave)==0){
 			return pos;
@@ -118,38 +101,24 @@ hash_t *hash_crear(hash_destruir_dato_t destruir_dato){
   hash_t* hash=calloc(1,sizeof(hash_t));
   if(!hash) return NULL;
   
+  
+  
   hash->tabla=calloc(CAPACIDAD_INICIAL,sizeof(campo_t*));
   if(!hash->tabla){
     free(hash);
     return NULL;
   }
-  
-  for(int i=0;i<CAPACIDAD_INICIAL;i++){
-    hash->tabla[i]=calloc(1,sizeof(campo_t));
-    
-    if(!hash->tabla[i]){
-        free(hash->tabla);
-        free(hash);
-        return NULL;
-    }
-    hash->tabla[i]->clave=calloc(1,sizeof(char*));
-    if(!hash->tabla[i]->clave){
-        free(hash->tabla);
-        free(hash);
-        return NULL;
-    }
-  }
-  
+
   hash->destruir_dato=destruir_dato;
-  hash->capacidad=CAPACIDAD_INICIAL;
+  hash->capacidad=CAPACIDAD_INICIAL; 
   return hash;
 }
 
 
 void *hash_obtener(const hash_t *hash, const char *clave){
     size_t i = buscar_ocupado(hash,clave);
-    
-	if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return NULL;
+    if (i==0 && !hash->tabla[i]) return NULL;
+	//if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return NULL;
 	return hash->tabla[i]->dato;
 }
 
@@ -157,10 +126,14 @@ void *hash_obtener(const hash_t *hash, const char *clave){
 void hash_destruir(hash_t *hash){
     size_t i = 0;
     while (i < hash->capacidad){
+        if (!hash->tabla[i]){
+			 i++;
+			 continue;
+		}	 
         if(hash->destruir_dato){
             hash->destruir_dato(hash->tabla[i]->dato);
         }
-        free(hash->tabla[i]->clave);
+		free(hash->tabla[i]->clave);
         free(hash->tabla[i]); 
         i++;
     }
@@ -174,7 +147,7 @@ bool hash_pertenece(const hash_t *hash, const char *clave){
 	
 	for (size_t i=0; i<hash->capacidad; i++){
 		size_t pos= (inicial + i)%hash->capacidad;
-		
+		if (!hash->tabla[pos]) continue;
 		if (hash->tabla[pos]->estado==OCUPADO && strcmp(hash->tabla[pos]->clave,clave)==0){
 			return true;
 		}	
@@ -251,14 +224,39 @@ void primos(hash_t *hash){
 
 }
 
+size_t factorial(size_t n){
+	size_t c,fact;
+	fact=1;
+	for (c = 1; c <= n; c++){
+		fact = fact * c;
+	}
+	return fact;		
+}
+
+size_t calcular_primo(hash_t* hash, int criterio){
+	size_t prox,ant;
+	size_t actual=hash->capacidad;
+	
+	if (criterio==ACHICAR){
+		size_t i=actual;
+		while(!ant && i>=2){
+			if ((factorial(i-1) + 1)%i==0) ant=i;
+			i--;
+		}
+		return ant;
+	}
+	size_t i=actual;
+	while(!prox){
+		if ((factorial(i-1) + 1)%i==0) prox=i;
+		i++;
+	}
+	return prox;
+}
+
+
 
 void redimensionar(hash_t *hash,int criterio){
 	
-	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
-	
-	if ( (criterio==AGRANDAR && carga < 0.7) || (criterio==ACHICAR && carga < 0.3) ){
-		return;
-	}
 	hash_t *viejo= hash;
 	hash_iter_t *iterador_viejo= hash_iter_crear(viejo);
 	
@@ -279,6 +277,8 @@ void redimensionar(hash_t *hash,int criterio){
 		hash_iter_avanzar(iterador_viejo);
 	}
 	primos(viejo);
+	//size_t n=calcular_primo(viejo,criterio);
+	//nuevo->tabla=realloc(nuevo->tabla,n); 
 	nuevo->tabla=realloc(nuevo->tabla,viejo->capacidad); //
 	nuevo->cantidad=viejo->cantidad;
 	nuevo->contador=viejo->contador;
@@ -311,9 +311,12 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	hash->tabla[i]->estado= BORRADO;
 	hash->tabla[i]->clave=NULL;
 	
-	redimensionar(hash,ACHICAR);
 	hash->cantidad--;
 	hash->borrados++;
+	
+	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
+	if (carga >=7)	redimensionar(hash,AGRANDAR);
+
 	return dato;
 }
 
@@ -321,23 +324,37 @@ void *hash_borrar(hash_t *hash, const char *clave){
 bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	
 	size_t i;
-	if(!hash_pertenece(hash,clave)){
-		i=buscar_vacio(hash,clave);
-		if (i==0 && hash->tabla[i]->estado!=VACIO) return false;
-	} else {
+	if(hash_pertenece(hash,clave)){
 		i=buscar_ocupado(hash,clave);
+		if (!hash->tabla[i]) return false;
 		if (i==0 && hash->tabla[i]->estado!=OCUPADO && strcmp(hash->tabla[i]->clave,clave)!=0) return false;
-	}			
+		strcpy(hash->tabla[i]->clave,clave);
+		
+		hash->tabla[i]->dato= dato;
+		hash->tabla[i]->estado= OCUPADO;	
+		
+		return true;
+	}
+	i=buscar_vacio(hash,clave);
+
+	if (hash->tabla[i]) return false;
+	
+    hash->tabla[i]=calloc(1,sizeof(campo_t));
+    
+    if(!hash->tabla[i]) return false;
+    
+    hash->tabla[i]->clave=calloc(1,sizeof(char*));
+    if(!hash->tabla[i]->clave) return NULL;
+	
 	strcpy(hash->tabla[i]->clave,clave);
 	
 	hash->tabla[i]->dato= dato;
 	hash->tabla[i]->estado= OCUPADO;	
 	hash->cantidad++;
 	
-	redimensionar(hash,AGRANDAR);
+	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
+	if (carga >=7)	redimensionar(hash,AGRANDAR);
 	return true;
 }
-
-
 
 
