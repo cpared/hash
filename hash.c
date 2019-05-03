@@ -90,31 +90,6 @@ size_t buscar_ocupado(const hash_t *hash, const char *clave){
 	return 0;
 }
 
-/*
-lista_t* hash_claves(cost hash_t* hash){
-	lista_t* lista=lista_crear();
-	if (!lista) return NULL;
-	
-	for (size_t i=0;i< hash->capacidad;i++){
-		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
-			lista_insertar(lista,hash->tabla[i]->clave);
-		}
-	}
-	return lista;
-}
-
-lista_t* hash_posiciones(cost hash_t* hash){
-	lista_t* lista=lista_crear();
-	if (!lista) return NULL;
-	
-	for (size_t i=0;i< hash->capacidad;i++){
-		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
-			lista_insertar(lista,i);
-		}
-	}
-	return lista;
-}
-*/
 
 //------------------------HASH CERRADO---------------------------------
 
@@ -188,7 +163,7 @@ size_t hash_cantidad(const hash_t *hash){
 size_t buscar_primero(const hash_t* hash){
 	int pos=-1;
 	for (size_t i=0; i< hash->capacidad; i++){
-		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
+		if (hash->tabla[i] ){
 			pos=(int)i;
 			break;
 		}
@@ -197,14 +172,14 @@ size_t buscar_primero(const hash_t* hash){
 		return (size_t)pos;
 	}
     
-    return (size_t)POS_INICIAL;
+    return hash->capacidad;
 }
 
 size_t buscar_ultimo(const hash_t* hash){
 	int pos=-1;
 	size_t max=buscar_primero(hash);
 	for (size_t i=hash->capacidad-1; i>max; i--){
-		if (hash->tabla[i] && hash->tabla[i]->estado==OCUPADO){
+		if (hash->tabla[i]){
 			pos=(int)i;
 			break;
 		}
@@ -229,38 +204,37 @@ hash_iter_t *hash_iter_crear(const hash_t *hash){
     
     //busca la primera posicion ocupada
     iter->pos = buscar_primero(hash);
-    
     return iter;
 }
 
 
 bool hash_iter_al_final(const hash_iter_t *iter){
-    if( iter->pos == iter->hash->capacidad || iter->pos==buscar_ultimo(iter->hash)  ) return true;
-	
+    if( iter->pos == iter->hash->capacidad  ) return true;
+	//|| iter->pos==buscar_ultimo(iter->hash)
 	return false;
 }
 
 
 bool hash_iter_avanzar(hash_iter_t *iter){
-    /*
-    if (hash_iter_al_final(iter)) return false;
-    iter->pos++;
-    return true;
-
-	*/
-	if (hash_iter_al_final(iter)) return false;
-	while(!iter->hash->tabla[iter->pos] && iter->hash->tabla[iter->pos]->estado!=OCUPADO){
-		if (hash_iter_al_final(iter)) return false;
-		iter->pos++;
+	
+	if (hash_iter_al_final(iter) || !iter) return false;
+	//while(!iter->hash->tabla[iter->pos] && iter->hash->cantidad<=iter->pos){
+	
+	for(size_t i=iter->pos; i< iter->hash->capacidad;i++){
+		if (iter->hash->tabla[i] && iter->hash->tabla[i]->estado==OCUPADO){
+			 iter->pos=i;
+			return true;
+		}
 	}
-	return true;
+	return false;
+	
 			
 }
 
 
 const char *hash_iter_ver_actual(const hash_iter_t *iter){
 	
-	if(iter->hash->tabla[(iter->pos)]) return iter->hash->tabla[(iter->pos)]->clave; 
+	if(iter->hash->tabla[(iter->pos)] && iter->hash->tabla[(iter->pos)]->estado==OCUPADO) return iter->hash->tabla[(iter->pos)]->clave; 
 	return NULL;
 }
 
@@ -283,9 +257,9 @@ size_t factorial(size_t n){
 }
 
 size_t calcular_primo(hash_t* hash, int criterio){
-	size_t prox,ant;
+	size_t ant;
 	size_t actual=hash->capacidad;
-	
+
 	if (criterio==ACHICAR){
 		if (actual==TAM_MIN) return actual;
 		size_t i=actual;
@@ -295,8 +269,10 @@ size_t calcular_primo(hash_t* hash, int criterio){
 		}
 		return ant;
 	}
+	
 	size_t i=actual;
-	while(!prox){
+	size_t prox=actual;
+	while(prox==actual){
 		if ((factorial(i-1) + 1)%i==0) prox=i;
 		i++;
 	}
@@ -304,20 +280,38 @@ size_t calcular_primo(hash_t* hash, int criterio){
 }
 
 
+void destruir_tabla(hash_t* hash){
+	size_t i = 0;
+    while (i < hash->capacidad){
+        if (!hash->tabla[i]){
+			 i++;
+			 continue;
+		}	 
+        if(hash->destruir_dato){
+            hash->destruir_dato(hash->tabla[i]->dato);
+        }
+		free(hash->tabla[i]->clave);
+        free(hash->tabla[i]); 
+        i++;
+    }
+}
+
+
+
 void redimensionar(hash_t *hash,int criterio){
 	
-	hash_t* viejo= hash;
-	hash_iter_t *iterador_viejo= hash_iter_crear(viejo);
 	
-	hash_t* nuevo=hash_crear(viejo->destruir_dato);
+	hash_iter_t* iterador= hash_iter_crear(hash);
 	
-	size_t n=calcular_primo(viejo,criterio);
+	hash_t* nuevo=hash_crear(hash->destruir_dato);
+	
+	size_t n=calcular_primo(hash,criterio);
 	nuevo->tabla=realloc(nuevo->tabla,n); 
-	nuevo->cantidad=viejo->cantidad;
 	
-	while(!hash_iter_al_final(iterador_viejo)){
+	
+	while(!hash_iter_al_final(iterador)){
 		
-		const char *clave_vieja=hash_iter_ver_actual(iterador_viejo);
+		const char *clave_vieja=hash_iter_ver_actual(iterador);
 		if (!clave_vieja) continue;
 		
 		size_t i=buscar_vacio(nuevo,clave_vieja);
@@ -333,15 +327,16 @@ void redimensionar(hash_t *hash,int criterio){
 
 		strcpy(nuevo->tabla[i]->clave,clave_vieja);
 
-		nuevo->tabla[i]->dato=iterador_viejo->hash->tabla[(iterador_viejo->pos)]->dato;
-			
-		hash_iter_avanzar(iterador_viejo);
+		nuevo->tabla[i]->dato=iterador->hash->tabla[(iterador->pos)]->dato;
+		
+		nuevo->cantidad++;	
+		hash_iter_avanzar(iterador);
 	}
+	destruir_tabla(hash);
+	hash->tabla=nuevo->tabla;
+	free(nuevo);
+	hash_iter_destruir(iterador);
 	
-	hash=nuevo;
-	
-	hash_iter_destruir(iterador_viejo);
-	hash_destruir(viejo);
 
 }
 
@@ -370,7 +365,7 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	hash->borrados++;
 	
 	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
-	if (carga >=7)	redimensionar(hash,AGRANDAR);
+	if (carga >=0.7)	redimensionar(hash,AGRANDAR);
 
 	return dato;
 }
@@ -389,6 +384,9 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 		
 		return true;
 	}
+	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
+	if (carga >=0.7)	redimensionar(hash,AGRANDAR);
+	
 	i=buscar_vacio(hash,clave);
 
 	if (hash->tabla[i]) return false;
@@ -406,8 +404,6 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	hash->tabla[i]->estado= OCUPADO;	
 	hash->cantidad++;
 	
-	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
-	if (carga >=7)	redimensionar(hash,AGRANDAR);
 	return true;
 }
 
