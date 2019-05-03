@@ -235,10 +235,10 @@ void hash_iter_destruir(hash_iter_t* iter){
 //-------------------------REDIMENSION---------------------------------
 
 void primos(hash_t *hash){
-	int primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
-	int proximo;
-	int j= (int ) hash->capacidad;
-	for (int i=0; i<12; i++){
+	size_t primos_pequenios[12]={2,3,5,7,11,13,17,19,23,29,31,37};
+	size_t proximo;
+	size_t j=  hash->capacidad;
+	for (size_t i=0; i<12; i++){
 		if (primos_pequenios[i]==j){
 			proximo=primos_pequenios[i];
 			break;
