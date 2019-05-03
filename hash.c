@@ -30,6 +30,11 @@ typedef enum {
 	BORRADO,
 }tipo_estado;
 
+typedef enum {
+	ACHICAR=1,
+	AGRANDAR,
+}criterio_t;
+
 #define CAPACIDAD_INICIAL ONCE
 #define POS_INICIAL 0
 
@@ -247,11 +252,11 @@ void primos(hash_t *hash){
 }
 
 
-void redimensionar(hash_t *hash){
+void redimensionar(hash_t *hash,int criterio){
 	
 	float carga= (float)(hash->cantidad+ hash->borrados)/ (float) hash->capacidad;
 	
-	if ( carga < 0.7 ){
+	if ( (criterio==AGRANDAR && carga < 0.7) || (criterio==ACHICAR && carga < 0.3) ){
 		return;
 	}
 	hash_t *viejo= hash;
@@ -306,7 +311,7 @@ void *hash_borrar(hash_t *hash, const char *clave){
 	hash->tabla[i]->estado= BORRADO;
 	hash->tabla[i]->clave=NULL;
 	
-	redimensionar(hash);
+	redimensionar(hash,ACHICAR);
 	hash->cantidad--;
 	hash->borrados++;
 	return dato;
@@ -329,7 +334,7 @@ bool hash_guardar(hash_t *hash, const char *clave, void *dato){
 	hash->tabla[i]->estado= OCUPADO;	
 	hash->cantidad++;
 	
-	redimensionar(hash);
+	redimensionar(hash,AGRANDAR);
 	return true;
 }
 
